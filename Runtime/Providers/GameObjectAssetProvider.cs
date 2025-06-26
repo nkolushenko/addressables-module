@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using Core.AddressablesModule.Pool;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -13,9 +14,11 @@ namespace Core.AddressablesModule
         private readonly Dictionary<AssetReference, RefCounter<GameObject>> _prefabHandlesByRef = new();
 
         private readonly Dictionary<string, List<GameObject>> _instancesByKey = new();
+
         private readonly Dictionary<AssetReference, List<GameObject>> _instancesByRef = new();
+
 //unsafe code
-        public async UniTask<GameObject> LoadAsync(string key)
+        public async UniTask<GameObject> LoadAsync(string key, CancellationToken cancellationToken)
         {
             if (_prefabHandlesByKey.TryGetValue(key, out var counter))
             {
@@ -24,10 +27,11 @@ namespace Core.AddressablesModule
             }
 
             var handle = Addressables.LoadAssetAsync<GameObject>(key);
-            await handle.Task;
+            await handle.WithCancellation(cancellationToken);
 
             if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
             {
+                Debug.LogError($"[Addressables] Failed to load: {key}");
                 return null;
             }
 
@@ -36,8 +40,9 @@ namespace Core.AddressablesModule
 
             return handle.Result;
         }
+
 //unsafe code
-        public async UniTask<GameObject> LoadAsync(AssetReference reference)
+        public async UniTask<GameObject> LoadAsync(AssetReference reference, CancellationToken cancellationToken)
         {
             if (_prefabHandlesByRef.TryGetValue(reference, out var counter))
             {
@@ -46,10 +51,11 @@ namespace Core.AddressablesModule
             }
 
             var handle = Addressables.LoadAssetAsync<GameObject>(reference);
-            await handle.Task;
+            await handle.WithCancellation(cancellationToken);
 
             if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
             {
+                Debug.LogError($"[Addressables] Failed to load: {reference.AssetGUID}");
                 return null;
             }
 
@@ -59,10 +65,10 @@ namespace Core.AddressablesModule
             return handle.Result;
         }
 
-        public async UniTask<GameObject> InstantiateAsync(string key)
+        public async UniTask<GameObject> InstantiateAsync(string key, CancellationToken cancellationToken)
         {
             var handle = Addressables.InstantiateAsync(key);
-            await handle.Task;
+            await handle.WithCancellation(cancellationToken);
 
             if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
             {
@@ -79,13 +85,14 @@ namespace Core.AddressablesModule
             return handle.Result;
         }
 
-        public async UniTask<GameObject> InstantiateAsync(AssetReference reference)
+        public async UniTask<GameObject> InstantiateAsync(AssetReference reference, CancellationToken cancellationToken)
         {
             var handle = Addressables.InstantiateAsync(reference);
-            await handle.Task;
+            await handle.WithCancellation(cancellationToken);
 
             if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
             {
+                Debug.LogError($"[Addressables] Failed to instantiate: {reference.AssetGUID}");
                 return null;
             }
 
@@ -98,6 +105,7 @@ namespace Core.AddressablesModule
             list.Add(handle.Result);
             return handle.Result;
         }
+
 //Need optimization
         public void Release(string key)
         {
@@ -125,6 +133,7 @@ namespace Core.AddressablesModule
                 ListPool<GameObject>.Release(list);
             }
         }
+
 //Need optimization
         public void Release(AssetReference reference)
         {
@@ -152,6 +161,7 @@ namespace Core.AddressablesModule
                 ListPool<GameObject>.Release(list);
             }
         }
+
 //Need optimization
         public void ReleaseInstance(GameObject instance)
         {

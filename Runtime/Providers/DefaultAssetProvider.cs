@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Threading;
 using Core.AddressablesModule.Pool;
 using Cysharp.Threading.Tasks;
+using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
@@ -11,7 +13,7 @@ namespace Core.AddressablesModule
         private readonly Dictionary<string, RefCounter<T>> _keyHandles = new();
         private readonly Dictionary<AssetReference, RefCounter<T>> _refHandles = new();
 
-        public async UniTask<T> LoadAsync(string key)
+        public async UniTask<T> LoadAsync(string key, CancellationToken cancellationToken)
         {
             if (_keyHandles.TryGetValue(key, out var counter))
             {
@@ -20,10 +22,11 @@ namespace Core.AddressablesModule
             }
 
             var handle = Addressables.LoadAssetAsync<T>(key);
-            await handle.Task;
+            await handle.WithCancellation(cancellationToken);
 
             if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
             {
+                Debug.LogError($"[Addressables] Failed to load: {key}");
                 return default;
             }
 
@@ -31,7 +34,7 @@ namespace Core.AddressablesModule
             return handle.Result;
         }
 
-        public async UniTask<T> LoadAsync(AssetReference reference)
+        public async UniTask<T> LoadAsync(AssetReference reference, CancellationToken cancellationToken)
         {
             if (_refHandles.TryGetValue(reference, out var counter))
             {
@@ -40,10 +43,11 @@ namespace Core.AddressablesModule
             }
 
             var handle = Addressables.LoadAssetAsync<T>(reference);
-            await handle.Task;
+            await handle.WithCancellation(cancellationToken);
 
             if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
             {
+                Debug.LogError($"[Addressables] Failed to load: {reference.AssetGUID}");
                 return default;
             }
 
