@@ -1,0 +1,1 @@
+Minimal GC-aware Addressables wrapper with ref-counting, safe instantiation and single-point access.
