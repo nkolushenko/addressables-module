@@ -8,13 +8,63 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace Core.AddressablesModule
 {
+    //TODO
+    //1 add custom logger - package realization
+    //2 TryGetLoaded - sync method ?
+    //3 asset guid - test on build - reference key better?
     public class DefaultAssetProvider<T> : IAssetProviderWithType<T>
     {
         private readonly Dictionary<string, RefCounter<T>> _keyHandles = new();
-        private readonly Dictionary<AssetReference, RefCounter<T>> _refHandles = new();
+        private readonly Dictionary<string, RefCounter<T>> _refHandles = new();
+
+        public bool TryUseLoaded(string key, out T asset)
+        {
+            if (_keyHandles.TryGetValue(key, out var counter) &&
+                counter.Handle.IsValid() &&
+                counter.Handle.Status == AsyncOperationStatus.Succeeded &&
+                counter.Handle.Result != null)
+            {
+                counter.RefCount++;
+                asset = counter.Handle.Result;
+                return true;
+            }
+
+            asset = default;
+            return false;
+        }
+
+        public bool TryUseLoaded(AssetReference reference, out T asset)
+        {
+            if (string.IsNullOrEmpty(reference.AssetGUID))
+            {
+                asset = default;
+                return false;
+            }
+
+            var guid = reference.AssetGUID;
+
+            if (_refHandles.TryGetValue(guid, out var counter) &&
+                counter.Handle.IsValid() &&
+                counter.Handle.Status == AsyncOperationStatus.Succeeded &&
+                counter.Handle.Result != null)
+            {
+                counter.RefCount++;
+                asset = counter.Handle.Result;
+                return true;
+            }
+
+            asset = default;
+            return false;
+        }
 
         public async UniTask<T> LoadAsync(string key, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrEmpty(key))
+            {
+                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: key is null or empty.");
+                return default;
+            }
+
             if (_keyHandles.TryGetValue(key, out var counter))
             {
                 counter.RefCount++;
@@ -22,48 +72,70 @@ namespace Core.AddressablesModule
             }
 
             var handle = Addressables.LoadAssetAsync<T>(key);
-            await handle.WithCancellation(cancellationToken);
+            await handle.ToUniTask(cancellationToken: cancellationToken);
 
-            if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
+            if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
             {
-                Debug.LogError($"[Addressables] Failed to load: {key}");
+                Addressables.Release(handle);
+                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by key: {key}");
                 return default;
             }
 
-            _keyHandles[key] = RefCounterPool<T>.Get(handle);
+            var newCounter = RefCounterPool<T>.Get(handle);
+            _keyHandles[key] = newCounter;
+
             return handle.Result;
         }
 
         public async UniTask<T> LoadAsync(AssetReference reference, CancellationToken cancellationToken)
         {
-            if (_refHandles.TryGetValue(reference, out var counter))
+            if (string.IsNullOrEmpty(reference.AssetGUID))
+            {
+                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: AssetGUID is null or empty.");
+                return default;
+            }
+
+            var guid = reference.AssetGUID;
+
+            if (_refHandles.TryGetValue(guid, out var counter))
             {
                 counter.RefCount++;
                 return counter.Handle.Result;
             }
 
             var handle = Addressables.LoadAssetAsync<T>(reference);
-            await handle.WithCancellation(cancellationToken);
+            await handle.ToUniTask(cancellationToken: cancellationToken);
 
-            if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
+            if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
             {
-                Debug.LogError($"[Addressables] Failed to load: {reference.AssetGUID}");
+                Addressables.Release(handle);
+                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: {guid}");
                 return default;
             }
 
-            _refHandles[reference] = RefCounterPool<T>.Get(handle);
+            var newCounter = RefCounterPool<T>.Get(handle);
+            _refHandles[guid] = newCounter;
+
             return handle.Result;
         }
 
         public void Release(string key)
         {
+            if (string.IsNullOrEmpty(key))
+            {
+                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to release asset by key: key is null or empty.");
+                return;
+            }
+
             if (!_keyHandles.TryGetValue(key, out var counter))
             {
+                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to release asset by key: key {key} doesn't exist.");
                 return;
             }
 
             counter.RefCount--;
-            if (counter.RefCount > 0)
+
+            if (counter.RefCount != 0)
             {
                 return;
             }
@@ -75,20 +147,48 @@ namespace Core.AddressablesModule
 
         public void Release(AssetReference reference)
         {
-            if (!_refHandles.TryGetValue(reference, out var counter))
+            var guid = reference.AssetGUID;
+            if (string.IsNullOrEmpty(guid))
             {
+                Debug.LogWarning(
+                    $"[DefaultAssetProvider{typeof(T)}] Failed to release asset by AssetReference: AssetGUID is null or empty.");
+                return;
+            }
+
+            if (!_refHandles.TryGetValue(guid, out var counter))
+            {
+                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to release asset by AssetReference: key {guid} doesn't exist.");
                 return;
             }
 
             counter.RefCount--;
-            if (counter.RefCount > 0)
+
+            if (counter.RefCount != 0)
             {
                 return;
             }
 
             Addressables.Release(counter.Handle);
-            _refHandles.Remove(reference);
+            _refHandles.Remove(guid);
             RefCounterPool<T>.Release(counter);
+        }
+
+        public void ClearAll()
+        {
+            foreach (var counter in _keyHandles.Values)
+            {
+                Addressables.Release(counter.Handle);
+                RefCounterPool<T>.Release(counter);
+            }
+
+            foreach (var counter in _refHandles.Values)
+            {
+                Addressables.Release(counter.Handle);
+                RefCounterPool<T>.Release(counter);
+            }
+
+            _keyHandles.Clear();
+            _refHandles.Clear();
         }
     }
 }

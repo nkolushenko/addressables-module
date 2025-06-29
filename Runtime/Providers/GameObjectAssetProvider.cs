@@ -18,6 +18,16 @@ namespace Core.AddressablesModule
         private readonly Dictionary<AssetReference, List<GameObject>> _instancesByRef = new();
 
 //unsafe code
+        public bool TryUseLoaded(string key, out GameObject asset)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public bool TryUseLoaded(AssetReference reference, out GameObject asset)
+        {
+            throw new System.NotImplementedException();
+        }
+
         public async UniTask<GameObject> LoadAsync(string key, CancellationToken cancellationToken)
         {
             if (_prefabHandlesByKey.TryGetValue(key, out var counter))
@@ -162,7 +172,11 @@ namespace Core.AddressablesModule
             }
         }
 
-//Need optimization
+        public void ClearAll()
+        {
+        }
+
+        //Need optimization
         public void ReleaseInstance(GameObject instance)
         {
             if (instance != null)
