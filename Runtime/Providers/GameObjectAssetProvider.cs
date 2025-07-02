@@ -7,7 +7,7 @@ using UnityEngine.AddressableAssets;
 
 namespace Core.AddressablesModule
 {
-    public class GameObjectAssetProvider : IInstantiatingAssetProvider<GameObject>
+    public class GameObjectAssetProvider : IInstantiatingAssetProvider
     {
         private readonly DefaultAssetProvider<GameObject> _prefabProvider = new();
 
