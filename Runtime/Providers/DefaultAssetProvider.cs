@@ -19,6 +19,12 @@ namespace Core.AddressablesModule
 
         public bool TryUseLoaded(string key, out T asset)
         {
+            if (string.IsNullOrEmpty(key))
+            {
+                asset = default;
+                return false;
+            }
+
             if (_keyHandles.TryGetValue(key, out var counter) &&
                 counter.Handle.IsValid() &&
                 counter.Handle.Status == AsyncOperationStatus.Succeeded &&

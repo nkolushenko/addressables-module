@@ -24,5 +24,17 @@ namespace Core.AddressablesModule
                 ? (IAssetProviderWithType<T>)new GameObjectAssetProvider()
                 : new DefaultAssetProvider<T>();
         }
+
+        public static T GetProvider<T>() where T : class, IAssetProvider
+        {
+            if (Providers.TryGetValue(typeof(T), out var result))
+            {
+                return (T)result;
+            }
+
+            return (T)(typeof(T) == typeof(GameObject)
+                ? (IAssetProviderWithType<T>)new GameObjectAssetProvider()
+                : new DefaultAssetProvider<T>());
+        }
     }
 }

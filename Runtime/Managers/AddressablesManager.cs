@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using UnityEngine;
 using UnityEngine.AddressableAssets;
 
 namespace Core.AddressablesModule
@@ -22,9 +23,10 @@ namespace Core.AddressablesModule
         public static void Release<T>(AssetReference reference) => AssetProviderRegistry.Get<T>().Release(reference);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<T> InstantiateAsync<T>(string key, CancellationToken cancellationToken)
+        public static UniTask<GameObject> InstantiateAsync(string key, CancellationToken cancellationToken)
         {
-            if (AssetProviderRegistry.Get<T>() is IInstantiatingAssetProvider<T> instantiating)
+            var provider = AssetProviderRegistry.Get<GameObjectAssetProvider>();
+            if (AssetProviderRegistry.Get<GameObjectAssetProvider>() is IInstantiatingAssetProvider<T> instantiating)
             {
                 return instantiating.InstantiateAsync(key, cancellationToken);
             }

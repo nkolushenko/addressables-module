@@ -4,185 +4,137 @@ using Core.AddressablesModule.Pool;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
-using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace Core.AddressablesModule
 {
     public class GameObjectAssetProvider : IInstantiatingAssetProvider<GameObject>
     {
-        private readonly Dictionary<string, RefCounter<GameObject>> _prefabHandlesByKey = new();
-        private readonly Dictionary<AssetReference, RefCounter<GameObject>> _prefabHandlesByRef = new();
+        private readonly DefaultAssetProvider<GameObject> _prefabProvider = new();
 
-        private readonly Dictionary<string, List<GameObject>> _instancesByKey = new();
+        private readonly Dictionary<string, List<GameObject>> _instantiated = new();
+        private readonly Dictionary<GameObject, string> _instanceToKey = new();
 
-        private readonly Dictionary<AssetReference, List<GameObject>> _instancesByRef = new();
+        public bool TryUseLoaded(string key, out GameObject asset) => _prefabProvider.TryUseLoaded(key, out asset);
+        public bool TryUseLoaded(AssetReference reference, out GameObject asset) => _prefabProvider.TryUseLoaded(reference, out asset);
 
-//unsafe code
-        public bool TryUseLoaded(string key, out GameObject asset)
+        public UniTask<GameObject> LoadAsync(string key, CancellationToken cancellationToken) =>
+            _prefabProvider.LoadAsync(key, cancellationToken);
+
+        public UniTask<GameObject> LoadAsync(AssetReference reference, CancellationToken cancellationToken) =>
+            _prefabProvider.LoadAsync(reference, cancellationToken);
+
+        public void Release(string key) => _prefabProvider.Release(key);
+        public void Release(AssetReference reference) => _prefabProvider.Release(reference);
+
+        public async UniTask<GameObject> InstantiateAsync(string key, Transform parent = null, bool instantiateInWorldSpace = false, bool
+            trackHandle = false, CancellationToken cancellationToken = default)
         {
-            throw new System.NotImplementedException();
-        }
-
-        public bool TryUseLoaded(AssetReference reference, out GameObject asset)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public async UniTask<GameObject> LoadAsync(string key, CancellationToken cancellationToken)
-        {
-            if (_prefabHandlesByKey.TryGetValue(key, out var counter))
+            if (string.IsNullOrEmpty(key))
             {
-                counter.RefCount++;
-                return counter.Handle.Result;
+                Debug.LogWarning($"[GameObjectAssetProvider] Failed to load asset by key: key is null or empty.");
+                return default;
             }
 
-            var handle = Addressables.LoadAssetAsync<GameObject>(key);
-            await handle.WithCancellation(cancellationToken);
+            var go = await Addressables.InstantiateAsync(key, parent, instantiateInWorldSpace, trackHandle)
+                .WithCancellation(cancellationToken);
 
-            if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
-            {
-                Debug.LogError($"[Addressables] Failed to load: {key}");
-                return null;
-            }
-
-            var newCounter = RefCounterPool<GameObject>.Get(handle);
-            _prefabHandlesByKey[key] = newCounter;
-
-            return handle.Result;
-        }
-
-//unsafe code
-        public async UniTask<GameObject> LoadAsync(AssetReference reference, CancellationToken cancellationToken)
-        {
-            if (_prefabHandlesByRef.TryGetValue(reference, out var counter))
-            {
-                counter.RefCount++;
-                return counter.Handle.Result;
-            }
-
-            var handle = Addressables.LoadAssetAsync<GameObject>(reference);
-            await handle.WithCancellation(cancellationToken);
-
-            if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
-            {
-                Debug.LogError($"[Addressables] Failed to load: {reference.AssetGUID}");
-                return null;
-            }
-
-            var newCounter = RefCounterPool<GameObject>.Get(handle);
-            _prefabHandlesByRef[reference] = newCounter;
-
-            return handle.Result;
-        }
-
-        public async UniTask<GameObject> InstantiateAsync(string key, CancellationToken cancellationToken)
-        {
-            var handle = Addressables.InstantiateAsync(key);
-            await handle.WithCancellation(cancellationToken);
-
-            if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
+            if (go == null)
             {
                 return null;
             }
 
-            if (!_instancesByKey.TryGetValue(key, out var list))
+            if (!_instantiated.TryGetValue(key, out var list))
             {
                 list = ListPool<GameObject>.Get();
-                _instancesByKey[key] = list;
+
+                _instantiated[key] = list;
             }
 
-            list.Add(handle.Result);
-            return handle.Result;
+            list.Add(go);
+
+            _instanceToKey[go] = key;
+
+            return go;
         }
 
-        public async UniTask<GameObject> InstantiateAsync(AssetReference reference, CancellationToken cancellationToken)
+        public async UniTask<GameObject> InstantiateAsync(AssetReference reference, Transform parent = null,
+            bool instantiateInWorldSpace = false, bool
+                trackHandle = false, CancellationToken cancellationToken = default)
         {
-            var handle = Addressables.InstantiateAsync(reference);
-            await handle.WithCancellation(cancellationToken);
-
-            if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
+            var key = reference.AssetGUID;
+            if (string.IsNullOrEmpty(key))
             {
-                Debug.LogError($"[Addressables] Failed to instantiate: {reference.AssetGUID}");
+                Debug.LogWarning($"[GameObjectAssetProvider] Failed to load asset by AssetReference: key is null or empty.");
+                return default;
+            }
+
+            var go = await Addressables.InstantiateAsync(key, parent, instantiateInWorldSpace, trackHandle)
+                .WithCancellation(cancellationToken);
+            if (go == null)
+            {
                 return null;
             }
 
-            if (!_instancesByRef.TryGetValue(reference, out var list))
+            if (!_instantiated.TryGetValue(key, out var list))
             {
                 list = ListPool<GameObject>.Get();
-                _instancesByRef[reference] = list;
+                _instantiated[key] = list;
             }
 
-            list.Add(handle.Result);
-            return handle.Result;
+            list.Add(go);
+            _instanceToKey[go] = key;
+
+            return go;
         }
 
-//Need optimization
-        public void Release(string key)
+        public void ReleaseInstance(GameObject instance)
         {
-            if (_prefabHandlesByKey.TryGetValue(key, out var counter))
+            if (instance == null || !_instanceToKey.Remove(instance, out var key))
             {
-                counter.RefCount--;
-                if (counter.RefCount <= 0)
+                return;
+            }
+
+            if (_instantiated.TryGetValue(key, out var list))
+            {
+                int index = list.IndexOf(instance);
+                if (index >= 0)
                 {
-                    Addressables.Release(counter.Handle);
-                    _prefabHandlesByKey.Remove(key);
-                    RefCounterPool<GameObject>.Release(counter);
+                    int last = list.Count - 1;
+                    list[index] = list[last];
+                    list.RemoveAt(last);
+                }
+
+                if (list.Count == 0)
+                {
+                    _instantiated.Remove(key);
+                    ListPool<GameObject>.Release(list);
                 }
             }
 
-            if (_instancesByKey.Remove(key, out var list))
-            {
-                foreach (var go in list)
-                {
-                    if (go != null)
-                    {
-                        Addressables.ReleaseInstance(go);
-                    }
-                }
-
-                ListPool<GameObject>.Release(list);
-            }
+            Addressables.ReleaseInstance(instance);
         }
 
-//Need optimization
-        public void Release(AssetReference reference)
-        {
-            if (_prefabHandlesByRef.TryGetValue(reference, out var counter))
-            {
-                counter.RefCount--;
-                if (counter.RefCount <= 0)
-                {
-                    Addressables.Release(counter.Handle);
-                    _prefabHandlesByRef.Remove(reference);
-                    RefCounterPool<GameObject>.Release(counter);
-                }
-            }
-
-            if (_instancesByRef.Remove(reference, out var list))
-            {
-                foreach (var go in list)
-                {
-                    if (go != null)
-                    {
-                        Addressables.ReleaseInstance(go);
-                    }
-                }
-
-                ListPool<GameObject>.Release(list);
-            }
-        }
 
         public void ClearAll()
         {
-        }
-
-        //Need optimization
-        public void ReleaseInstance(GameObject instance)
-        {
-            if (instance != null)
+            foreach (var info in _instantiated.Values)
             {
-                Addressables.ReleaseInstance(instance);
+                for (int j = 0; j < info.Count; j++)
+                {
+                    var go = info[j];
+
+                    if (go != null)
+                    {
+                        Addressables.ReleaseInstance(go);
+                    }
+                }
+
+                ListPool<GameObject>.Release(info);
             }
+
+            _instantiated.Clear();
+            _instanceToKey.Clear();
+            _prefabProvider.ClearAll();
         }
     }
 }
