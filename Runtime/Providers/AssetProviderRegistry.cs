@@ -4,28 +4,21 @@ using UnityEngine;
 
 namespace Core.AddressablesModule
 {
-    //TODO optimize 
-    public static class AssetProviderRegistry
+    //TODO optimize - move to DI or ServiceLocator
+    public class AssetProviderResolver : IAssetProviderResolver
     {
-        private static readonly GameObjectAssetProvider s_gameObjectAssetProvider = new();
+        private readonly GameObjectInstantiatingAssetProvider _sGameObjectInstantiatingAssetProvider = new();
 
-        private static readonly Dictionary<Type, object> Providers = new();
+        private readonly Dictionary<Type, object> _providers = new();
 
-        public static void Register<T>(IAssetProviderWithType<T> provider)
-        {
-            Providers[typeof(T)] = provider;
-        }
-
-        public static GameObjectAssetProvider GameObjectAssetProvider => s_gameObjectAssetProvider;
-
-        public static IAssetProviderWithType<T> Get<T>()
+        public IAssetProviderWithType<T> Get<T>()
         {
             if (typeof(T) == typeof(GameObject))
             {
-                return (IAssetProviderWithType<T>)GameObjectAssetProvider;
+                return (IAssetProviderWithType<T>)_sGameObjectInstantiatingAssetProvider;
             }
 
-            if (Providers.TryGetValue(typeof(T), out var result))
+            if (_providers.TryGetValue(typeof(T), out var result))
             {
                 return (IAssetProviderWithType<T>)result;
             }
@@ -33,16 +26,9 @@ namespace Core.AddressablesModule
             return new DefaultAssetProvider<T>();
         }
 
-        public static T GetProvider<T>() where T : class, IAssetProvider
+        public GameObjectInstantiatingAssetProvider GetSpecificProvider()
         {
-            if (Providers.TryGetValue(typeof(T), out var result))
-            {
-                return (T)result;
-            }
-
-            return (T)(typeof(T) == typeof(GameObject)
-                ? (IAssetProviderWithType<T>)new GameObjectAssetProvider()
-                : new DefaultAssetProvider<T>());
+            return _sGameObjectInstantiatingAssetProvider;
         }
     }
 }

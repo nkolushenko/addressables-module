@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Threading;
 using Core.AddressablesModule.Pool;
 using Cysharp.Threading.Tasks;
-using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
@@ -14,8 +13,14 @@ namespace Core.AddressablesModule
     //3 asset guid - test on build - reference key better?
     public class DefaultAssetProvider<T> : IAssetProviderWithType<T>
     {
+        private readonly ILogWrapper _logger;
         private readonly Dictionary<string, RefCounter<T>> _keyHandles = new();
         private readonly Dictionary<string, RefCounter<T>> _refHandles = new();
+
+        public DefaultAssetProvider(ILogWrapper logger)
+        {
+            _logger = logger;
+        }
 
         public bool TryUseLoaded(string key, out T asset)
         {
@@ -67,7 +72,7 @@ namespace Core.AddressablesModule
         {
             if (string.IsNullOrEmpty(key))
             {
-                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: key is null or empty.");
+                _logger.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: key is null or empty.");
                 return default;
             }
 
@@ -83,7 +88,7 @@ namespace Core.AddressablesModule
             if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
             {
                 Addressables.Release(handle);
-                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by key: {key}");
+                _logger.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by key: {key}");
                 return default;
             }
 
@@ -97,7 +102,8 @@ namespace Core.AddressablesModule
         {
             if (string.IsNullOrEmpty(reference.AssetGUID))
             {
-                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: AssetGUID is null or empty.");
+                _logger.LogWarning(
+                    $"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: AssetGUID is null or empty.");
                 return default;
             }
 
@@ -115,7 +121,7 @@ namespace Core.AddressablesModule
             if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
             {
                 Addressables.Release(handle);
-                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: {guid}");
+                _logger.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to load asset by AssetReference: {guid}");
                 return default;
             }
 
@@ -129,13 +135,13 @@ namespace Core.AddressablesModule
         {
             if (string.IsNullOrEmpty(key))
             {
-                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to release asset by key: key is null or empty.");
+                _logger.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to release asset by key: key is null or empty.");
                 return;
             }
 
             if (!_keyHandles.TryGetValue(key, out var counter))
             {
-                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to release asset by key: key {key} doesn't exist.");
+                _logger.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to release asset by key: key {key} doesn't exist.");
                 return;
             }
 
@@ -156,14 +162,15 @@ namespace Core.AddressablesModule
             var guid = reference.AssetGUID;
             if (string.IsNullOrEmpty(guid))
             {
-                Debug.LogWarning(
+                _logger.LogWarning(
                     $"[DefaultAssetProvider{typeof(T)}] Failed to release asset by AssetReference: AssetGUID is null or empty.");
                 return;
             }
 
             if (!_refHandles.TryGetValue(guid, out var counter))
             {
-                Debug.LogWarning($"[DefaultAssetProvider{typeof(T)}] Failed to release asset by AssetReference: key {guid} doesn't exist.");
+                _logger.LogWarning(
+                    $"[DefaultAssetProvider{typeof(T)}] Failed to release asset by AssetReference: key {guid} doesn't exist.");
                 return;
             }
 

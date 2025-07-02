@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -6,45 +5,45 @@ using UnityEngine.AddressableAssets;
 
 namespace Core.AddressablesModule
 {
-    public static class AddressablesManager
+    public class AddressablesManager
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<T> LoadAsync<T>(string key, CancellationToken cancellationToken) =>
-            AssetProviderRegistry.Get<T>().LoadAsync(key, cancellationToken);
+        private readonly IAssetProviderResolver _resolver;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<T> LoadAsync<T>(AssetReference reference, CancellationToken cancellationToken) =>
-            AssetProviderRegistry.Get<T>().LoadAsync(reference, cancellationToken);
+        public AddressablesManager(IAssetProviderResolver resolver)
+        {
+            _resolver = resolver;
+        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Release<T>(string key) => AssetProviderRegistry.Get<T>().Release(key);
+        public UniTask<T> LoadAsync<T>(string key, CancellationToken cancellationToken) =>
+            _resolver.Get<T>().LoadAsync(key, cancellationToken);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Release<T>(AssetReference reference) => AssetProviderRegistry.Get<T>().Release(reference);
+        public UniTask<T> LoadAsync<T>(AssetReference reference, CancellationToken cancellationToken) =>
+            _resolver.Get<T>().LoadAsync(reference, cancellationToken);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<GameObject> InstantiateAsync(string key, Transform parent = null, bool instantiateInWorldSpace = false, bool
+        public void Release<T>(string key) => _resolver.Get<T>().Release(key);
+
+        public void Release<T>(AssetReference reference) => _resolver.Get<T>().Release(reference);
+
+        public UniTask<GameObject> InstantiateAsync(string key, Transform parent = null, bool instantiateInWorldSpace = false, bool
             trackHandle = false, CancellationToken cancellationToken = default)
         {
-            var provider = AssetProviderRegistry.GameObjectAssetProvider;
+            var provider = _resolver.GetSpecificProvider();
 
             return provider.InstantiateAsync(key, parent, instantiateInWorldSpace,
                 trackHandle, cancellationToken);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<GameObject> InstantiateAsync<T>(AssetReference reference, Transform parent = null,
+        public UniTask<GameObject> InstantiateAsync<T>(AssetReference reference, Transform parent = null,
             bool instantiateInWorldSpace = false, bool trackHandle = false, CancellationToken cancellationToken = default)
         {
-            var provider = AssetProviderRegistry.GameObjectAssetProvider;
+            var provider = _resolver.GetSpecificProvider();
 
             return provider.InstantiateAsync(reference, parent, instantiateInWorldSpace, trackHandle, cancellationToken);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void ReleaseInstance(GameObject instance)
+        public void ReleaseInstance(GameObject instance)
         {
-            var provider = AssetProviderRegistry.GameObjectAssetProvider;
+            var provider = _resolver.GetSpecificProvider();
 
             provider.ReleaseInstance(instance);
         }

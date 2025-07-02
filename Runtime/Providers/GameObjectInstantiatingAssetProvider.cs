@@ -7,31 +7,24 @@ using UnityEngine.AddressableAssets;
 
 namespace Core.AddressablesModule
 {
-    public class GameObjectAssetProvider : IInstantiatingAssetProvider
+    public class GameObjectInstantiatingAssetProvider : IInstantiatingAssetProvider
     {
-        private readonly DefaultAssetProvider<GameObject> _prefabProvider = new();
+        private readonly ILogWrapper _logger;
 
         private readonly Dictionary<string, List<GameObject>> _instantiated = new();
         private readonly Dictionary<GameObject, string> _instanceToKey = new();
 
-        public bool TryUseLoaded(string key, out GameObject asset) => _prefabProvider.TryUseLoaded(key, out asset);
-        public bool TryUseLoaded(AssetReference reference, out GameObject asset) => _prefabProvider.TryUseLoaded(reference, out asset);
-
-        public UniTask<GameObject> LoadAsync(string key, CancellationToken cancellationToken) =>
-            _prefabProvider.LoadAsync(key, cancellationToken);
-
-        public UniTask<GameObject> LoadAsync(AssetReference reference, CancellationToken cancellationToken) =>
-            _prefabProvider.LoadAsync(reference, cancellationToken);
-
-        public void Release(string key) => _prefabProvider.Release(key);
-        public void Release(AssetReference reference) => _prefabProvider.Release(reference);
+        public GameObjectInstantiatingAssetProvider(ILogWrapper logger)
+        {
+            _logger = logger;
+        }
 
         public async UniTask<GameObject> InstantiateAsync(string key, Transform parent = null, bool instantiateInWorldSpace = false, bool
             trackHandle = false, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(key))
             {
-                Debug.LogWarning($"[GameObjectAssetProvider] Failed to load asset by key: key is null or empty.");
+                _logger.LogWarning($"[GameObjectAssetProvider] Failed to load asset by key: key is null or empty.");
                 return default;
             }
 
@@ -64,7 +57,7 @@ namespace Core.AddressablesModule
             var key = reference.AssetGUID;
             if (string.IsNullOrEmpty(key))
             {
-                Debug.LogWarning($"[GameObjectAssetProvider] Failed to load asset by AssetReference: key is null or empty.");
+                _logger.LogWarning($"[GameObjectAssetProvider] Failed to load asset by AssetReference: key is null or empty.");
                 return default;
             }
 
@@ -113,8 +106,7 @@ namespace Core.AddressablesModule
 
             Addressables.ReleaseInstance(instance);
         }
-
-
+        
         public void ClearAll()
         {
             foreach (var info in _instantiated.Values)
@@ -134,7 +126,6 @@ namespace Core.AddressablesModule
 
             _instantiated.Clear();
             _instanceToKey.Clear();
-            _prefabProvider.ClearAll();
         }
     }
 }
