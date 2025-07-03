@@ -6,5 +6,10 @@
   "author": {
     "name": "Anastasiya Kolushenko",
     "email": "anastasiya.kolushenko@gmail.com"
+  },
+  
+  "dependencies": {
+    "com.unity.addressables": "1.22.3",
+    "com.cysharp.unitask": "2.5.10"
   }
 }
