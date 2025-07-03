@@ -10,7 +10,7 @@ namespace Core.AddressablesModule
     public class GameObjectInstantiatingAssetProvider : IInstantiatingAssetProvider
     {
         private readonly ILogWrapper _logger;
-
+        private readonly Dictionary<GameObject, RefCounter<GameObject>> _manualHandles = new();
         private readonly Dictionary<string, List<GameObject>> _instantiated = new();
         private readonly Dictionary<GameObject, string> _instanceToKey = new();
 
@@ -28,12 +28,18 @@ namespace Core.AddressablesModule
                 return default;
             }
 
-            var go = await Addressables.InstantiateAsync(key, parent, instantiateInWorldSpace, trackHandle)
-                .WithCancellation(cancellationToken);
+            var handle = Addressables.InstantiateAsync(key, parent, instantiateInWorldSpace, trackHandle);
+            var go = await handle.WithCancellation(cancellationToken);
 
             if (go == null)
             {
                 return null;
+            }
+
+            if (!trackHandle)
+            {
+                var counter = RefCounterPool<GameObject>.Get(handle);
+                _manualHandles[go] = counter;
             }
 
             if (!_instantiated.TryGetValue(key, out var list))
@@ -61,11 +67,19 @@ namespace Core.AddressablesModule
                 return default;
             }
 
-            var go = await Addressables.InstantiateAsync(key, parent, instantiateInWorldSpace, trackHandle)
-                .WithCancellation(cancellationToken);
+
+            var handle = Addressables.InstantiateAsync(key, parent, instantiateInWorldSpace, trackHandle);
+            var go = await handle.WithCancellation(cancellationToken);
+
             if (go == null)
             {
                 return null;
+            }
+
+            if (!trackHandle)
+            {
+                var counter = RefCounterPool<GameObject>.Get(handle);
+                _manualHandles[go] = counter;
             }
 
             if (!_instantiated.TryGetValue(key, out var list))
@@ -104,9 +118,23 @@ namespace Core.AddressablesModule
                 }
             }
 
-            Addressables.ReleaseInstance(instance);
+            if (_manualHandles.TryGetValue(instance, out var counter))
+            {
+                counter.RefCount--;
+
+                if (counter.RefCount <= 0)
+                {
+                    Addressables.Release(counter.Handle);
+                    RefCounterPool<GameObject>.Release(counter);
+                    _manualHandles.Remove(instance);
+                }
+            }
+            else
+            {
+                Addressables.ReleaseInstance(instance);
+            }
         }
-        
+
         public void ClearAll()
         {
             foreach (var info in _instantiated.Values)

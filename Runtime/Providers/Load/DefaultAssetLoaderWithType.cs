@@ -7,17 +7,13 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace Core.AddressablesModule
 {
-    //TODO
-    //1 add custom logger - package realization
-    //2 TryGetLoaded - sync method ?
-    //3 asset guid - test on build - reference key better?
-    public class DefaultAssetProvider<T> : IAssetProviderWithType<T>
+    public class DefaultAssetLoaderWithType<T> : IAssetLoaderWithType<T>
     {
         private readonly ILogWrapper _logger;
         private readonly Dictionary<string, RefCounter<T>> _keyHandles = new();
         private readonly Dictionary<string, RefCounter<T>> _refHandles = new();
 
-        public DefaultAssetProvider(ILogWrapper logger)
+        public DefaultAssetLoaderWithType(ILogWrapper logger)
         {
             _logger = logger;
         }
@@ -188,20 +184,30 @@ namespace Core.AddressablesModule
 
         public void ClearAll()
         {
-            foreach (var counter in _keyHandles.Values)
-            {
-                Addressables.Release(counter.Handle);
-                RefCounterPool<T>.Release(counter);
-            }
+            ClearAllLoadedAssetsByRef();
+            ClearAllLoadedAssetsByKey();
+        }
 
+        public void ClearAllLoadedAssetsByRef()
+        {
             foreach (var counter in _refHandles.Values)
             {
                 Addressables.Release(counter.Handle);
                 RefCounterPool<T>.Release(counter);
             }
 
-            _keyHandles.Clear();
             _refHandles.Clear();
+        }
+
+        public void ClearAllLoadedAssetsByKey()
+        {
+            foreach (var counter in _keyHandles.Values)
+            {
+                Addressables.Release(counter.Handle);
+                RefCounterPool<T>.Release(counter);
+            }
+
+            _keyHandles.Clear();
         }
     }
 }

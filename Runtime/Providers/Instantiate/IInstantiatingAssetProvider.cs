@@ -5,7 +5,7 @@ using UnityEngine.AddressableAssets;
 
 namespace Core.AddressablesModule
 {
-    public interface IInstantiatingAssetProvider 
+    public interface IInstantiatingAssetProvider
     {
         UniTask<GameObject> InstantiateAsync(string key, Transform parent = null, bool instantiateInWorldSpace = false, bool
             trackHandle = false, CancellationToken cancellationToken = default);
@@ -15,5 +15,6 @@ namespace Core.AddressablesModule
                 trackHandle = false, CancellationToken cancellationToken = default);
 
         void ReleaseInstance(GameObject instance);
+        void ClearAll();
     }
 }

@@ -5,13 +5,15 @@ using UnityEngine.AddressableAssets;
 
 namespace Core.AddressablesModule
 {
-    public class AddressablesManager
+    public class AddressablesService : IAddressablesService
     {
         private readonly IAssetProviderResolver _resolver;
+        private readonly GameObjectInstantiatingAssetProvider _instantiatingAssetProvider;
 
-        public AddressablesManager(IAssetProviderResolver resolver)
+        public AddressablesService(IAssetProviderResolver resolver, GameObjectInstantiatingAssetProvider instantiatingAssetProvider)
         {
             _resolver = resolver;
+            _instantiatingAssetProvider = instantiatingAssetProvider;
         }
 
         public UniTask<T> LoadAsync<T>(string key, CancellationToken cancellationToken) =>
@@ -27,25 +29,45 @@ namespace Core.AddressablesModule
         public UniTask<GameObject> InstantiateAsync(string key, Transform parent = null, bool instantiateInWorldSpace = false, bool
             trackHandle = false, CancellationToken cancellationToken = default)
         {
-            var provider = _resolver.GetSpecificProvider();
-
-            return provider.InstantiateAsync(key, parent, instantiateInWorldSpace,
+            return _instantiatingAssetProvider.InstantiateAsync(key, parent, instantiateInWorldSpace,
                 trackHandle, cancellationToken);
         }
 
         public UniTask<GameObject> InstantiateAsync<T>(AssetReference reference, Transform parent = null,
             bool instantiateInWorldSpace = false, bool trackHandle = false, CancellationToken cancellationToken = default)
         {
-            var provider = _resolver.GetSpecificProvider();
-
-            return provider.InstantiateAsync(reference, parent, instantiateInWorldSpace, trackHandle, cancellationToken);
+            return _instantiatingAssetProvider.InstantiateAsync(reference, parent, instantiateInWorldSpace, trackHandle, cancellationToken);
         }
 
         public void ReleaseInstance(GameObject instance)
         {
-            var provider = _resolver.GetSpecificProvider();
+            _instantiatingAssetProvider.ReleaseInstance(instance);
+        }
 
-            provider.ReleaseInstance(instance);
+        public void ClearAllLoadedAssetsByKey<T>()
+        {
+            _resolver.Get<T>().ClearAllLoadedAssetsByKey();
+        }
+
+        public void ClearAllLoadedAssetsByRef<T>()
+        {
+            _resolver.Get<T>().ClearAllLoadedAssetsByRef();
+        }
+
+        public void ClearAllLoadedInstantiatedAssets()
+        {
+            _instantiatingAssetProvider.ClearAll();
+        }
+
+        public void ForceClearAll()
+        {
+            var loaders = _resolver.GetAllLoaders();
+            foreach (var loader in loaders)
+            {
+                loader.ClearAll();
+            }
+
+            _instantiatingAssetProvider.ClearAll();
         }
     }
 }

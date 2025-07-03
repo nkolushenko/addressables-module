@@ -4,11 +4,18 @@ using UnityEngine.AddressableAssets;
 
 namespace Core.AddressablesModule
 {
-    public interface IAssetProvider
+    public interface IAssetLoader : ICleanerLoadedAssets
     {
     }
 
-    public interface IAssetProviderWithType<T> : IAssetProvider
+    public interface ICleanerLoadedAssets
+    {
+        void ClearAll();
+        void ClearAllLoadedAssetsByRef();
+        void ClearAllLoadedAssetsByKey();
+    }
+
+    public interface IAssetLoaderWithType<T> : IAssetLoader
     {
         public bool TryUseLoaded(string key, out T asset);
         public bool TryUseLoaded(AssetReference reference, out T asset);
@@ -18,7 +25,5 @@ namespace Core.AddressablesModule
 
         void Release(string key);
         void Release(AssetReference reference);
-
-        void ClearAll();
     }
 }
