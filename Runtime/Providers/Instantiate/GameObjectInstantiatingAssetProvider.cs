@@ -10,6 +10,7 @@ namespace Core.AddressablesModule
     public class GameObjectInstantiatingAssetProvider : IInstantiatingAssetProvider
     {
         private readonly ILogWrapper _logger;
+        
         private readonly Dictionary<GameObject, RefCounter<GameObject>> _manualHandles = new();
         private readonly Dictionary<string, List<GameObject>> _instantiated = new();
         private readonly Dictionary<GameObject, string> _instanceToKey = new();

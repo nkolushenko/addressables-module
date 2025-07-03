@@ -2,7 +2,7 @@ using Core.AddressablesModule;
 
 namespace addressables_module.Runtime.Infrastructure
 {
-    //TODO - move to DIContainer
+// TODO: Replace with DI container and remove this
     public class ServiceLocator
     {
         private static ServiceLocator _instance;
@@ -38,7 +38,7 @@ namespace addressables_module.Runtime.Infrastructure
 
             GameObjectInstantiatingAssetProvider gameObjectsAssetProvider = new GameObjectInstantiatingAssetProvider(logWrapper);
             IAssetProviderFactory assetProviderFactory = new AssetProviderFactoryWithServiceLocator(logWrapper);
-            
+
             var addressablesResolver = new AssetProviderResolver(assetProviderFactory);
 
             AddressablesService = new AddressablesService(addressablesResolver, gameObjectsAssetProvider);
