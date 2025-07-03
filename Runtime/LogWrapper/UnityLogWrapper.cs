@@ -8,5 +8,10 @@ namespace Core.AddressablesModule
         {
             Debug.LogWarning(message);
         }
+
+        public void LogError(string message)
+        {
+            Debug.LogError(message);
+        }
     }
 }

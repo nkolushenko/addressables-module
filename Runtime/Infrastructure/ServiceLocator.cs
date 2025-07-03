@@ -1,4 +1,5 @@
 using Core.AddressablesModule;
+using Core.AddressablesModule.Services;
 
 namespace addressables_module.Runtime.Infrastructure
 {
@@ -39,7 +40,7 @@ namespace addressables_module.Runtime.Infrastructure
 
             GameObjectInstantiatingAssetProvider gameObjectsAssetProvider = new GameObjectInstantiatingAssetProvider(logWrapper);
             IAssetProviderFactory assetProviderFactory = new AssetProviderFactoryWithServiceLocator(logWrapper);
-            
+
             var addressablesResolver = new AssetProviderResolver(assetProviderFactory);
 
             AddressablesService = new AddressablesService(addressablesResolver, gameObjectsAssetProvider);
