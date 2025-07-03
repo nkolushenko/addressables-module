@@ -11,19 +11,19 @@ namespace Core.AddressablesModule.Pool
         {
             if (Pool.Count <= 0)
             {
-                return new RefCounter<T>(handle);
+                var refCounter = new RefCounter<T>();
+                refCounter.Rent(handle);
+                return refCounter;
             }
 
             var item = Pool.Pop();
-            item.Handle = handle;
-            item.RefCount = 1;
+            item.Rent(handle);
             return item;
         }
 
         public static void Release(RefCounter<T> counter)
         {
-            counter.Handle = default;
-            counter.RefCount = 0;
+            counter.Release();
             Pool.Push(counter);
         }
     }

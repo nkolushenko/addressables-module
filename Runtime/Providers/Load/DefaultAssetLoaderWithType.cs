@@ -31,7 +31,7 @@ namespace Core.AddressablesModule
                 counter.Handle.Status == AsyncOperationStatus.Succeeded &&
                 counter.Handle.Result != null)
             {
-                counter.RefCount++;
+                counter.IncrementRef();
                 asset = counter.Handle.Result;
                 return true;
             }
@@ -55,7 +55,7 @@ namespace Core.AddressablesModule
                 counter.Handle.Status == AsyncOperationStatus.Succeeded &&
                 counter.Handle.Result != null)
             {
-                counter.RefCount++;
+                counter.IncrementRef();
                 asset = counter.Handle.Result;
                 return true;
             }
@@ -74,7 +74,7 @@ namespace Core.AddressablesModule
 
             if (_keyHandles.TryGetValue(key, out var counter))
             {
-                counter.RefCount++;
+                counter.IncrementRef();
                 return counter.Handle.Result;
             }
 
@@ -107,7 +107,7 @@ namespace Core.AddressablesModule
 
             if (_refHandles.TryGetValue(guid, out var counter))
             {
-                counter.RefCount++;
+                counter.IncrementRef();
                 return counter.Handle.Result;
             }
 
@@ -141,7 +141,7 @@ namespace Core.AddressablesModule
                 return;
             }
 
-            counter.RefCount--;
+            counter.DecrementRef();
 
             if (counter.RefCount != 0)
             {
@@ -170,7 +170,7 @@ namespace Core.AddressablesModule
                 return;
             }
 
-            counter.RefCount--;
+            counter.DecrementRef();
 
             if (counter.RefCount != 0)
             {

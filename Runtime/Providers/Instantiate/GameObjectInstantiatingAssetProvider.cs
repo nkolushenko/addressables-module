@@ -121,7 +121,7 @@ namespace Core.AddressablesModule
 
             if (_manualHandles.TryGetValue(instance, out var counter))
             {
-                counter.RefCount--;
+                counter.DecrementRef(); 
 
                 if (counter.RefCount <= 0)
                 {
