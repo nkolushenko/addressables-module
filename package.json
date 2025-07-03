@@ -4,7 +4,7 @@
   "displayName": "Addressables Module",
   "description": "Minimal GC-aware Addressables wrapper with ref-counting, safe instantiation and single-point access.",
   "author": {
-    "name": "Anastasiya Kolushenko",
+    "name": "Anastasia Kolushenko",
     "email": "anastasiya.kolushenko@gmail.com"
   },
   
