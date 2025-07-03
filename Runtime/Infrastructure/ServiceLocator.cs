@@ -14,6 +14,7 @@ namespace addressables_module.Runtime.Infrastructure
         }
 
         public IAddressablesService AddressablesService { get; private set; }
+        public ISpriteAtlasService SpriteAtlasService { get; private set; }
 
         public static ServiceLocator Instance
         {
@@ -38,10 +39,11 @@ namespace addressables_module.Runtime.Infrastructure
 
             GameObjectInstantiatingAssetProvider gameObjectsAssetProvider = new GameObjectInstantiatingAssetProvider(logWrapper);
             IAssetProviderFactory assetProviderFactory = new AssetProviderFactoryWithServiceLocator(logWrapper);
-
+            
             var addressablesResolver = new AssetProviderResolver(assetProviderFactory);
 
             AddressablesService = new AddressablesService(addressablesResolver, gameObjectsAssetProvider);
+            SpriteAtlasService = new SpriteAtlasService(AddressablesService, logWrapper);
         }
     }
 }
